@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       const service = await client.query('SELECT duration_minutes FROM turnos_services WHERE id = $1 AND tenant_id = $2 AND active = true', [serviceId, tenantId]);
       if (!service.rows[0]) throw new CoreError('SERVICE_NOT_FOUND', 'El servicio no existe.', 404);
       const duration = Number(service.rows[0].duration_minutes);
-      const dayStart = new Date(`${date}T12:00:00.000Z`);
+      const dayStart = new Date(`${date}T03:00:00.000Z`);
       const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
       const bookings = await client.query(
         'SELECT starts_at, ends_at FROM turnos_bookings WHERE tenant_id = $1 AND status = $2 AND starts_at < $3 AND ends_at > $4',
@@ -25,13 +25,11 @@ export async function GET(request: Request) {
       );
       const busy = bookings.rows.map((row) => [new Date(row.starts_at).getTime(), new Date(row.ends_at).getTime()] as const);
       const slots: Array<{ id: string; startsAt: string; endsAt: string; available: boolean }> = [];
-      const base = new Date(`${date}T12:00:00.000Z`);
+      const midnightUtc = new Date(`${date}T00:00:00.000Z`);
       for (let minutes = 9 * 60; minutes + duration <= 17 * 60; minutes += 30) {
-        const startsAt = new Date(base.getTime() + (minutes - 12 * 60) * 60 * 1000);
+        const startsAt = new Date(midnightUtc.getTime() + (minutes + 180) * 60 * 1000);
         const endsAt = new Date(startsAt.getTime() + duration * 60 * 1000);
-        const startMs = startsAt.getTime();
-        const endMs = endsAt.getTime();
-        const available = !busy.some(([busyStart, busyEnd]) => startMs < busyEnd && endMs > busyStart);
+        const available = !busy.some(([busyStart, busyEnd]) => startsAt.getTime() < busyEnd && endsAt.getTime() > busyStart);
         slots.push({ id: `${serviceId}-${date}-${String(minutes).padStart(4, '0')}`, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), available });
       }
       return Response.json({ slots }, { headers: { 'Cache-Control': 'no-store' } });
