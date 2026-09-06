@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { db } from '../../../../../lib/core/db';
-import { CoreError, jsonError, ready, required } from '../../../../../lib/core/http';
+import { db } from '../../../../../../lib/core/db';
+import { CoreError, jsonError, ready, required } from '../../../../../../lib/core/http';
 
 export const runtime = 'nodejs';
 
