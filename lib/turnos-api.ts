@@ -46,7 +46,7 @@ export type ApiError = {
 const CORE_URL = process.env.NEXT_PUBLIC_TURNOS_CORE_URL?.replace(/\/$/, '');
 
 function coreUrl(path: string) {
-  if (!CORE_URL) throw new Error('TURNOS Core URL is not configured.');
+  if (!CORE_URL) return path;
   return `${CORE_URL}${path}`;
 }
 
@@ -103,5 +103,5 @@ export async function confirmBooking(input: { tenantId: string; bookingIntentId:
 }
 
 export function isCoreConfigured() {
-  return Boolean(CORE_URL);
+  return true;
 }
