@@ -85,19 +85,21 @@ export async function getAvailability(tenantId: string, serviceId: string, date:
 }
 
 export async function createBookingIntent(input: BookingIntentInput) {
-  return request<BookingIntent>('/api/v1/public/booking-intents', {
+  const response = await request<{ intent: BookingIntent }>('/api/v1/public/booking-intents', {
     method: 'POST',
     headers: { 'Idempotency-Key': input.idempotencyKey },
     body: JSON.stringify(input),
   });
+  return response.intent;
 }
 
 export async function confirmBooking(input: { tenantId: string; bookingIntentId: string; idempotencyKey: string }) {
-  return request<BookingConfirmation>('/api/v1/public/bookings/confirm', {
+  const response = await request<{ booking: BookingConfirmation }>('/api/v1/public/bookings/confirm', {
     method: 'POST',
     headers: { 'Idempotency-Key': input.idempotencyKey },
     body: JSON.stringify(input),
   });
+  return response.booking;
 }
 
 export function isCoreConfigured() {
