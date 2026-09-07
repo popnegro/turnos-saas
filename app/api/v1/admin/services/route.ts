@@ -13,6 +13,7 @@ function authorize(request: Request) {
 
 function validateServices(value: unknown) {
   if (!Array.isArray(value)) throw new CoreError('VALIDATION_ERROR', 'services debe ser un array.');
+  if (value.length === 0) throw new CoreError('VALIDATION_ERROR', 'Debe existir al menos un servicio.');
   if (value.length > 50) throw new CoreError('VALIDATION_ERROR', 'Se permiten hasta 50 servicios.');
 
   return value.map((service: unknown) => {
@@ -72,11 +73,14 @@ export async function PUT(request: Request) {
       if (!tenant.rows[0]) throw new CoreError('TENANT_NOT_FOUND', 'El negocio no existe.', 404);
 
       for (const service of services) {
+        const existing = await client.query('SELECT tenant_id FROM turnos_services WHERE id = $1', [service.id]);
+        if (existing.rows[0] && existing.rows[0].tenant_id !== tenantId) {
+          throw new CoreError('SERVICE_ID_CONFLICT', 'El identificador del servicio ya pertenece a otro negocio.', 409);
+        }
         await client.query(
           `INSERT INTO turnos_services (id, tenant_id, name, duration_minutes, price, active)
            VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, duration_minutes = EXCLUDED.duration_minutes, price = EXCLUDED.price, active = EXCLUDED.active
-           WHERE turnos_services.tenant_id = $2`,
+           ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, duration_minutes = EXCLUDED.duration_minutes, price = EXCLUDED.price, active = EXCLUDED.active`,
           [service.id, tenantId, service.name, service.durationMinutes, service.price, service.active],
         );
       }
