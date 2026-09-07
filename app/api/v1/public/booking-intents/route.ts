@@ -4,6 +4,16 @@ import { CoreError, jsonError, ready, required } from '../../../../../lib/core/h
 
 export const runtime = 'nodejs';
 
+function weekdayInMendoza(value: Date) {
+  const day = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/Argentina/Mendoza' }).format(value);
+  return ({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 } as Record<string, number>)[day];
+}
+
+function minutesInMendoza(value: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Argentina/Mendoza' }).formatToParts(value);
+  return Number(parts.find((part) => part.type === 'hour')?.value) * 60 + Number(parts.find((part) => part.type === 'minute')?.value);
+}
+
 export async function POST(request: Request) {
   try {
     await ready();
@@ -33,6 +43,19 @@ export async function POST(request: Request) {
       if (!service.rows[0]) throw new CoreError('SERVICE_NOT_FOUND', 'El servicio no existe.', 404);
       const duration = Number(service.rows[0].duration_minutes);
       const endsAt = new Date(start.getTime() + duration * 60_000);
+      const weekday = weekdayInMendoza(start);
+      const startMinutes = minutesInMendoza(start);
+      const endMinutes = minutesInMendoza(endsAt);
+      const schedule = await client.query(
+        `SELECT 1 FROM turnos_availability_rules
+         WHERE tenant_id = $1 AND weekday = $2
+           AND EXTRACT(HOUR FROM start_time) * 60 + EXTRACT(MINUTE FROM start_time) <= $3
+           AND EXTRACT(HOUR FROM end_time) * 60 + EXTRACT(MINUTE FROM end_time) >= $4
+         LIMIT 1`,
+        [tenantId, weekday, startMinutes, endMinutes],
+      );
+      if (!schedule.rows[0]) throw new CoreError('SLOT_OUTSIDE_AVAILABILITY', 'El horario solicitado no está dentro de la disponibilidad del negocio.', 409);
+
       const conflict = await client.query(
         'SELECT 1 FROM turnos_bookings WHERE tenant_id = $1 AND status = $2 AND starts_at < $3 AND ends_at > $4 LIMIT 1',
         [tenantId, 'confirmed', endsAt.toISOString(), start.toISOString()],
