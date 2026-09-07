@@ -14,6 +14,8 @@ export async function POST(request: Request) {
     const startsAt = required(body.startsAt, 'startsAt');
     const customerName = required(body.customer?.name, 'customer.name');
     const customerPhone = typeof body.customer?.phone === 'string' ? body.customer.phone.trim() : null;
+    const customerEmail = typeof body.customer?.email === 'string' ? body.customer.email.trim().toLowerCase() : null;
+    if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) throw new CoreError('VALIDATION_ERROR', 'customer.email no es válido.');
     const start = new Date(startsAt);
     if (Number.isNaN(start.getTime())) throw new CoreError('VALIDATION_ERROR', 'startsAt no es una fecha válida.');
 
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
     try {
       await client.query('BEGIN');
       const existing = await client.query(
-        'SELECT id, tenant_id AS "tenantId", service_id AS "serviceId", starts_at AS "startsAt", ends_at AS "endsAt", customer_name AS "customerName", customer_phone AS "customerPhone", status, expires_at AS "expiresAt" FROM turnos_booking_intents WHERE tenant_id = $1 AND idempotency_key = $2',
+        'SELECT id, tenant_id AS "tenantId", service_id AS "serviceId", starts_at AS "startsAt", ends_at AS "endsAt", customer_name AS "customerName", customer_phone AS "customerPhone", customer_email AS "customerEmail", status, expires_at AS "expiresAt" FROM turnos_booking_intents WHERE tenant_id = $1 AND idempotency_key = $2',
         [tenantId, idempotencyKey],
       );
       if (existing.rows[0]) {
@@ -42,8 +44,8 @@ export async function POST(request: Request) {
       const id = randomUUID();
       const expiresAt = new Date(Date.now() + 10 * 60_000);
       const result = await client.query(
-        'INSERT INTO turnos_booking_intents (id, tenant_id, service_id, starts_at, ends_at, customer_name, customer_phone, expires_at, idempotency_key) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, tenant_id AS "tenantId", service_id AS "serviceId", starts_at AS "startsAt", ends_at AS "endsAt", customer_name AS "customerName", customer_phone AS "customerPhone", status, expires_at AS "expiresAt"',
-        [id, tenantId, serviceId, start.toISOString(), endsAt.toISOString(), customerName, customerPhone, expiresAt.toISOString(), idempotencyKey],
+        'INSERT INTO turnos_booking_intents (id, tenant_id, service_id, starts_at, ends_at, customer_name, customer_phone, customer_email, expires_at, idempotency_key) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, tenant_id AS "tenantId", service_id AS "serviceId", starts_at AS "startsAt", ends_at AS "endsAt", customer_name AS "customerName", customer_phone AS "customerPhone", customer_email AS "customerEmail", status, expires_at AS "expiresAt"',
+        [id, tenantId, serviceId, start.toISOString(), endsAt.toISOString(), customerName, customerPhone, customerEmail, expiresAt.toISOString(), idempotencyKey],
       );
       await client.query('COMMIT');
       return Response.json({ intent: result.rows[0] }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
