@@ -14,7 +14,8 @@
     "react": "latest",
     "react-dom": "latest",
     "typescript": "latest",
-    "lucide-react": "latest"
+    "lucide-react": "latest",
+    "resend": "^6.9.0"
   },
   "devDependencies": {}
 }
