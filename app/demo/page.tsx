@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, UserRound, AlertCircle } from 'lucide-react';
 import { createBookingIntent, confirmBooking, getAvailability, getServices, isCoreConfigured, type PublicService, type AvailabilitySlot } from '../../lib/turnos-api';
 import './demo.css';
+import './monthly-calendar.css';
 
 const TENANT_ID = process.env.NEXT_PUBLIC_TURNOS_DEMO_TENANT_ID ?? 'demo';
 const BOOKING_WINDOW_DAYS = 31;
