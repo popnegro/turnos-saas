@@ -75,7 +75,7 @@ export default function AgendaPage() {
     <main className="agenda-page">
       <header className="agenda-header">
         <div><a href="/" className="agenda-brand">TURNOS</a><span className="agenda-kicker">AGENDA DEL NEGOCIO</span></div>
-        <div className="agenda-header-actions"><a href="/agenda/disponibilidad" className="agenda-settings"><Settings2 size={15} /> Disponibilidad</a><button className="agenda-logout" onClick={logout} type="button">Cerrar sesión</button></div>
+        <div className="agenda-header-actions"><a href="/agenda/servicios" className="agenda-settings"><Settings2 size={15} /> Servicios</a><a href="/agenda/disponibilidad" className="agenda-settings"><Settings2 size={15} /> Disponibilidad</a><button className="agenda-logout" onClick={logout} type="button">Cerrar sesión</button></div>
       </header>
       <section className="agenda-shell">
         <div className="agenda-title-row"><div><h1>Agenda</h1><p>{formatDate(date)}</p></div><button className="refresh" onClick={() => void loadAgenda()} type="button" disabled={loading}><RefreshCw size={16} className={loading ? 'spin' : ''} /> Actualizar</button></div>
