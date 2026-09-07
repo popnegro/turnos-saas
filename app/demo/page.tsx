@@ -31,6 +31,7 @@ export default function DemoPage() {
   const [slotId, setSlotId] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [loadingServices, setLoadingServices] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -41,7 +42,8 @@ export default function DemoPage() {
   const service = useMemo(() => services.find((item) => item.id === serviceId), [services, serviceId]);
   const slot = useMemo(() => slots.find((item) => item.id === slotId), [slots, slotId]);
   const coreReady = isCoreConfigured();
-  const canConfirm = coreReady && Boolean(service && slot && name.trim().length >= 2) && !submitting;
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const canConfirm = coreReady && Boolean(service && slot && name.trim().length >= 2 && validEmail) && !submitting;
 
   useEffect(() => {
     if (!coreReady) {
@@ -93,7 +95,7 @@ export default function DemoPage() {
         tenantId: TENANT_ID,
         serviceId: service.id,
         startsAt: slot.startsAt,
-        customer: { name: name.trim(), phone: phone.trim() || undefined },
+        customer: { name: name.trim(), phone: phone.trim() || undefined, email: email.trim() },
         idempotencyKey,
       });
       const booking = await confirmBooking({
@@ -162,7 +164,11 @@ export default function DemoPage() {
               </div>
 
               <div className="step-head second"><div><small>PASO 3 DE 3</small><h2>Tus datos</h2></div><UserRound size={20} /></div>
-              <div className="name-field"><label>Nombre<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. María González" autoComplete="name" /></label><label>WhatsApp <span>(opcional)</span><input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Ej. 261 555 1234" autoComplete="tel" /></label></div>
+              <div className="name-field">
+                <label>Nombre<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. María González" autoComplete="name" /></label>
+                <label>Email<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Ej. maria@email.com" autoComplete="email" type="email" required /></label>
+                <label>WhatsApp <span>(opcional)</span><input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Ej. 261 555 1234" autoComplete="tel" /></label>
+              </div>
 
               {service && slot && <div className="summary"><span><b>{service.name}</b><small>{date} · {new Date(slot.startsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} · {service.durationMinutes} min</small></span><strong>{formatPrice(service.price)}</strong></div>}
               <button className="confirm" disabled={!canConfirm} onClick={handleConfirm} type="button">{submitting ? 'Confirmando…' : 'Confirmar reserva'} <ArrowRight size={16} /></button>
@@ -172,9 +178,9 @@ export default function DemoPage() {
               <div className="success-icon"><Check size={28} /></div>
               <span className="demo-kicker">RESERVA CONFIRMADA</span>
               <h2>Turno confirmado.</h2>
-              <p>La reserva fue enviada al TURNOS Core y confirmó correctamente.</p>
-              <div className="summary success-summary"><span><b>{service?.name}</b><small>{name} · {date} · {slot ? new Date(slot.startsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}</small></span><strong>{bookingId}</strong></div>
-              <button className="confirm" onClick={() => { setConfirmed(false); setName(''); setPhone(''); setSlotId(''); }} type="button">Probar otra reserva <ArrowRight size={16} /></button>
+              <p>La reserva fue enviada al TURNOS Core y confirmó correctamente. Te enviamos el comprobante por email.</p>
+              <div className="summary success-summary"><span><b>{service?.name}</b><small>{name} · {email} · {date} · {slot ? new Date(slot.startsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}</small></span><strong>{bookingId}</strong></div>
+              <button className="confirm" onClick={() => { setConfirmed(false); setName(''); setEmail(''); setPhone(''); setSlotId(''); }} type="button">Probar otra reserva <ArrowRight size={16} /></button>
             </div>
           )}
         </div>
