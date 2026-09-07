@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       }
 
       if (typeof intent.customer_email === 'string' && intent.customer_email) {
-        void sendBookingConfirmationEmail({
+        await sendBookingConfirmationEmail({
           to: intent.customer_email,
           customerName: intent.customer_name,
           tenantName,
