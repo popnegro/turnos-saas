@@ -29,15 +29,17 @@ export async function ensureSchema() {
       CREATE TABLE IF NOT EXISTS turnos_booking_intents (
         id UUID PRIMARY KEY, tenant_id TEXT NOT NULL REFERENCES turnos_tenants(id) ON DELETE CASCADE,
         service_id TEXT NOT NULL REFERENCES turnos_services(id), starts_at TIMESTAMPTZ NOT NULL, ends_at TIMESTAMPTZ NOT NULL,
-        customer_name TEXT NOT NULL, customer_phone TEXT, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ NOT NULL,
+        customer_name TEXT NOT NULL, customer_phone TEXT, customer_email TEXT, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ NOT NULL,
         idempotency_key TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE (tenant_id, idempotency_key)
       );
+      ALTER TABLE turnos_booking_intents ADD COLUMN IF NOT EXISTS customer_email TEXT;
       CREATE TABLE IF NOT EXISTS turnos_bookings (
         id UUID PRIMARY KEY, tenant_id TEXT NOT NULL REFERENCES turnos_tenants(id) ON DELETE CASCADE,
         service_id TEXT NOT NULL REFERENCES turnos_services(id), booking_intent_id UUID NOT NULL UNIQUE REFERENCES turnos_booking_intents(id),
-        starts_at TIMESTAMPTZ NOT NULL, ends_at TIMESTAMPTZ NOT NULL, customer_name TEXT NOT NULL, customer_phone TEXT,
+        starts_at TIMESTAMPTZ NOT NULL, ends_at TIMESTAMPTZ NOT NULL, customer_name TEXT NOT NULL, customer_phone TEXT, customer_email TEXT,
         status TEXT NOT NULL DEFAULT 'confirmed', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE (tenant_id, starts_at)
       );
+      ALTER TABLE turnos_bookings ADD COLUMN IF NOT EXISTS customer_email TEXT;
       CREATE INDEX IF NOT EXISTS turnos_bookings_tenant_start_idx ON turnos_bookings(tenant_id, starts_at);
       CREATE INDEX IF NOT EXISTS turnos_intents_tenant_start_idx ON turnos_booking_intents(tenant_id, starts_at);
       INSERT INTO turnos_tenants (id, name) VALUES ('demo', 'TURNOS Demo'), ('salud', 'Salud Demo') ON CONFLICT (id) DO NOTHING;
