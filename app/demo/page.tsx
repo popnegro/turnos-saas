@@ -1,33 +1,68 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock3, UserRound, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, UserRound, AlertCircle } from 'lucide-react';
 import { createBookingIntent, confirmBooking, getAvailability, getServices, isCoreConfigured, type PublicService, type AvailabilitySlot } from '../../lib/turnos-api';
 import './demo.css';
 
 const TENANT_ID = process.env.NEXT_PUBLIC_TURNOS_DEMO_TENANT_ID ?? 'demo';
+const BOOKING_WINDOW_DAYS = 31;
 
 function formatPrice(value?: number) {
   if (value == null) return 'Consultar';
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value);
 }
 
-function dateOptions() {
-  const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit' });
-  return Array.from({ length: 5 }, (_, index) => {
-    const date = new Date();
-    date.setHours(12, 0, 0, 0);
-    date.setDate(date.getDate() + index);
-    return { value: date.toISOString().slice(0, 10), label: formatter.format(date).replace('.', '') };
+function localDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function startOfDay(date: Date) {
+  const value = new Date(date);
+  value.setHours(12, 0, 0, 0);
+  return value;
+}
+
+function dateRange() {
+  const today = startOfDay(new Date());
+  return Array.from({ length: BOOKING_WINDOW_DAYS }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + index);
+    return localDateString(date);
   });
 }
 
+function calendarDays(month: Date, minDate: string, maxDate: string) {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1, 12);
+  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0, 12);
+  const mondayOffset = (first.getDay() + 6) % 7;
+  const cells: Array<{ value: string; day: number; disabled: boolean }> = [];
+
+  for (let index = 0; index < mondayOffset; index += 1) cells.push({ value: `empty-${index}`, day: 0, disabled: true });
+  for (let day = 1; day <= last.getDate(); day += 1) {
+    const value = localDateString(new Date(month.getFullYear(), month.getMonth(), day, 12));
+    cells.push({ value, day, disabled: value < minDate || value > maxDate });
+  }
+  return cells;
+}
+
+function formatSelectedDate(value: string) {
+  return new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: '2-digit', month: 'long' })
+    .format(new Date(`${value}T12:00:00`));
+}
+
 export default function DemoPage() {
-  const dates = useMemo(dateOptions, []);
+  const dates = useMemo(dateRange, []);
+  const minDate = dates[0];
+  const maxDate = dates[dates.length - 1];
   const [services, setServices] = useState<PublicService[]>([]);
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [serviceId, setServiceId] = useState('');
-  const [date, setDate] = useState(dates[0].value);
+  const [date, setDate] = useState(minDate);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(`${minDate}T12:00:00`));
   const [slotId, setSlotId] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -42,6 +77,8 @@ export default function DemoPage() {
   const slot = useMemo(() => slots.find((item) => item.id === slotId), [slots, slotId]);
   const coreReady = isCoreConfigured();
   const canConfirm = coreReady && Boolean(service && slot && name.trim().length >= 2) && !submitting;
+  const calendarCells = useMemo(() => calendarDays(calendarMonth, minDate, maxDate), [calendarMonth, minDate, maxDate]);
+  const monthLabel = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(calendarMonth);
 
   useEffect(() => {
     if (!coreReady) {
@@ -81,6 +118,20 @@ export default function DemoPage() {
 
     return () => { cancelled = true; };
   }, [coreReady, serviceId, date]);
+
+  function selectDate(value: string) {
+    setDate(value);
+    setCalendarMonth(new Date(`${value}T12:00:00`));
+  }
+
+  function shiftMonth(delta: number) {
+    const next = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + delta, 1, 12);
+    const minMonth = new Date(`${minDate}T12:00:00`);
+    const maxMonth = new Date(`${maxDate}T12:00:00`);
+    if (next < new Date(minMonth.getFullYear(), minMonth.getMonth(), 1, 12)) return;
+    if (next > new Date(maxMonth.getFullYear(), maxMonth.getMonth(), 1, 12)) return;
+    setCalendarMonth(next);
+  }
 
   async function handleConfirm() {
     if (!canConfirm || !service || !slot) return;
@@ -146,13 +197,23 @@ export default function DemoPage() {
               )}
 
               <div className="step-head second"><div><small>PASO 2 DE 3</small><h2>Elegí día y horario</h2></div><CalendarDays size={20} /></div>
-              <div className="days">
-                {dates.map((item) => (
-                  <button key={item.value} className={date === item.value ? 'selected' : ''} onClick={() => setDate(item.value)} type="button">
-                    <span>{item.label.split(' ')[0]}</span><b>{item.label.split(' ')[1]}</b>
-                  </button>
-                ))}
+              <div className="calendar" aria-label="Calendario de reservas">
+                <div className="calendar-head">
+                  <button type="button" onClick={() => shiftMonth(-1)} aria-label="Mes anterior"><ChevronLeft size={17} /></button>
+                  <strong>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</strong>
+                  <button type="button" onClick={() => shiftMonth(1)} aria-label="Mes siguiente"><ChevronRight size={17} /></button>
+                </div>
+                <div className="calendar-weekdays">{['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => <span key={day}>{day}</span>)}</div>
+                <div className="calendar-grid">
+                  {calendarCells.map((item) => item.day === 0 ? <span key={item.value} /> : (
+                    <button key={item.value} type="button" disabled={item.disabled} className={date === item.value ? 'selected' : ''} onClick={() => selectDate(item.value)}>
+                      {item.day}
+                    </button>
+                  ))}
+                </div>
+                <small className="calendar-hint">Podés reservar desde hoy hasta el {new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: 'long' }).format(new Date(`${maxDate}T12:00:00`))}.</small>
               </div>
+              <div className="selected-date">{formatSelectedDate(date)}</div>
               <div className="slots">
                 {loadingSlots ? <span>Cargando horarios…</span> : slots.length === 0 ? <span>No hay horarios disponibles para este día.</span> : slots.map((item) => (
                   <button key={item.id} className={slotId === item.id ? 'selected' : ''} onClick={() => setSlotId(item.id)} type="button">
